@@ -58,7 +58,7 @@ Keep-awake: `input keyevent 24/25` (permission B) resets the sleep timer; otherw
 ## Bouncer / pattern unlock
 
 - MIUI raises the pattern bouncer on a SLOW drag (~1000 ms) upward; 120 ms flicks are ignored
-  (user-confirmed: "ต้องปัดแบบเหมือนลากขึ้นข้างบนประมาณ 1 วินาที").
+  (user-confirmed: "you have to swipe as if dragging upward for about 1 second").
 - Houston-injected swipes NEVER raised it in ~10 attempts across three phases (pre-permission).
   Post-permission effect unverified (screen asleep during tests).
 - `wm dismiss-keylock`... `wm dismiss-keyguard` is a no-op on secure locks.

@@ -92,7 +92,7 @@ swipe works:
 
 ## Live-sync protocol (user-assisted bouncer)
 
-1. Tell user: พิมพ์ "ปัดแล้ว" กดส่ง แล้วปัดขึ้นช้าๆ ~1 วิ ทันที ทิ้งหน้ากริดไว้
+1. Tell the user: type "swiped", hit send, then immediately drag up slowly ~1s and leave the grid on screen
 2. On their reply, immediately poll every 1.5s for 40–60s: cap_exec →
    detect_grid → break on hit.
 3. Draw + verify + capture in the same run (bouncer auto-hides in ~15-30s;

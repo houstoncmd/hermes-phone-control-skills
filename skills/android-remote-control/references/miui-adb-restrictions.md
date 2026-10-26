@@ -17,7 +17,7 @@ Applies to `input tap`, `input swipe`, `input keyevent` — including
 screen nor draw an unlock pattern via `input` while the device is locked.
 
 **One-time user fix:** Settings → Additional settings → Developer options →
-enable **"USB debugging (Security settings)"** (การดีบัก USB (การตั้งค่าความปลอดภัย)).
+enable **"USB debugging (Security settings)"** (MIUI shows the literal Thai translation of this label).
 Some MIUI builds additionally require confirming with the Mi Account password.
 After that, injection works even on the lockscreen.
 

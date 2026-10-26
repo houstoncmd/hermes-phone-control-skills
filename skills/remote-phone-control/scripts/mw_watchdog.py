@@ -2,14 +2,14 @@
 """mw_watchdog.py — MicrowareMobile (Redmi 9/MIUI) + DuckZilla (Moto G9/stock)
 tunnel+adb watchdog (silent when healthy).
 
- พิมพ์ข้อความเฉพาะตอน "สถานะเปลี่ยน" เท่านั้น ต่อเครื่อง:
-   - tunnel UP -> DOWN   : แจ้งเตือน + คำแนะนำ
-   - tunnel DOWN -> UP   : แจ้งว่ากลับมาแล้ว
-   - tunnel UP + adb หลุด : scan/adb connect ให้เอง (พอร์ตหมุน) แล้วรายงาน
- Healthy (tunnel up + adb up) -> stdout ว่าง = เงียบ ไม่รบกวน
+ It prints a message ONLY on a state change, per device:
+   - tunnel UP -> DOWN   : alert + fix instructions
+   - tunnel DOWN -> UP   : back-online notice
+   - tunnel UP + adb lost: re-scan / adb connect by itself (port rotated), then report
+ Healthy (tunnel up + adb up) -> empty stdout = silent, no disturbance
 
- Deploy: cp ไป ~/.hermes/scripts/mw_watchdog.py แล้ว register cron
- (no_agent=True, schedule "*/30 * * * *", deliver=origin)
+ Deploy: cp to ~/.hermes/scripts/mw_watchdog.py then register the cron
+(no_agent=True, schedule "*/30 * * * *", deliver=origin)
 """
 import json
 import os
@@ -19,7 +19,7 @@ import sys
 import time
 
 PHONES = [
-    # (name, tunnel_ip, kind) kind: "miui" ใช้ skill scan_connect | "stock" สแกนเอง
+    # (name, tunnel_ip, kind) kind: "miui" uses the skill's scan_connect | "stock" scans natively
     ("MicrowareMobile", "10.66.66.2", "miui"),
     ("DuckZilla", "10.66.66.3", "stock"),
 ]
@@ -51,7 +51,7 @@ def adb_serial(ip):
 
 
 def scan_ports(ip):
-    """สแกนพอร์ต 1024-65535 แบบ thread แล้ว adb connect ทีละพอร์ต"""
+    """Threaded scan of ports 1024-65535, then adb connect to each open port"""
     import socket
     import concurrent.futures
 
@@ -109,7 +109,7 @@ def main():
     for name, ip, kind in PHONES:
         prev = prev_all.get(ip)
         up = tunnel_up(ip)
-        if not up:  # กันเน็ตสะดุดสั้นๆ
+        if not up:  # ignore a short network blip
             time.sleep(8)
             up = tunnel_up(ip)
         cur = "up" if up else "down"
@@ -119,24 +119,24 @@ def main():
             if not ser:
                 ser = adb_reconnect(ip, kind)
                 if ser:
-                    msgs.append(f"🛰️ {name}: adb พอร์ตหมุน เรียกต่อให้แล้ว: {ser}")
+                    msgs.append(f"🛰️ {name}: adb port rotated — reconnected for you: {ser}")
                 else:
                     msgs.append(
-                        f"⚠️ {name}: tunnel UP แต่ adb สแกนไม่เจอพอร์ต — ถ้าเพิ่ง reboot "
-                        f"ต้องปลดล็อกหน้าจอด้วยมือ 1 ครั้ง (กติกา Android)")
+                        f"⚠️ {name}: tunnel UP but no adb port found — if it just rebooted, "
+                        f"the screen must be unlocked by hand once (Android rule)")
             st[ip] = "up" + (f" adb={ser}" if ser else " adb=none")
             if prev == "down":
-                msgs.insert(0, f"✅ {name}: tunnel กลับมา UP แล้ว")
+                msgs.insert(0, f"✅ {name}: tunnel is back UP")
         else:
             st[ip] = "down"
             if prev != "down":
-                extra = ("ตั้งแบตเตอรี่ = ไม่มีข้อจำกัด + Always-on VPN"
+                extra = ("set battery = No restrictions + Always-on VPN"
                          if kind == "miui" else
-                         "stock Android น้อยกว่า ให้เปิดแอป WireGuard บนเครื่อง")
+                         "on stock Android this is rarer — open the WireGuard app on the device")
                 msgs.append(
-                    f"❌ {name} ({ip}): tunnel DOWN (ping ไม่เข้า)\n"
-                    f"→ เปิดแอป WireGuard บนเครื่อง แล้วรอ ~1 นาที\n"
-                    f"→ ยัง DOWN: {extra}")
+                    f"❌ {name} ({ip}): tunnel DOWN (ping fails)\n"
+                    f"→ open the WireGuard app on the device and wait ~1 minute\n"
+                    f"→ still DOWN: {extra}")
 
     write_state(st)
     if msgs:

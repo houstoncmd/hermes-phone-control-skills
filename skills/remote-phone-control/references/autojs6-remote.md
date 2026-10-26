@@ -46,7 +46,7 @@ log("...");                       // → logcat GlobalConsole
 device.wakeUp();                  // ✅ wakes screen even from off (try/catch anyway)
 device.isScreenOn();  device.width;  device.height;   // 1080x2340
 gesture(1400, [[540,2210],[540,1750],[540,1300],[540,950]]);  // ONE continuous stroke,
-      // duration ms, never lifts — matches user journey "ลาก ≥1วิไม่ปล่อยมือ"
+      // duration ms, never lifts — matches the user journey "drag ≥1s without lifting the finger"
 currentPackage();                 // success check: != "com.android.systemui"
 className("...").findOne(ms);  classNameMatches("...").find();
 ```

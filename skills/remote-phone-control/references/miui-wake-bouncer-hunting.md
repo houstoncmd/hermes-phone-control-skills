@@ -35,7 +35,7 @@ Notes:
   and served the SAME stale hierarchy across gestures → screenshots are ground truth.
 - `dumpsys window windows` shows no separate bouncer window (it lives inside NotificationShade).
 - `MiuiKeyguardPictorialWallpaper` present = MIUI Lock Screen Magazine may hijack gestures;
-  user can disable in ตั้งค่า → ล็อกหน้าจอ.
+  the user can disable it in Settings → Lock screen.
 - `dumpsys lock_settings` → `CredentialType: Pattern`; `cmd lock_settings get-disabled` →
   `IllegalArgumentException: Credential can't be null or empty` → **no CLI bypass** (stops here).
 

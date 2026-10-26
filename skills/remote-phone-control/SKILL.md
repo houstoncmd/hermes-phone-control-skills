@@ -1,6 +1,6 @@
 ---
 name: remote-phone-control
-description: "Control the user's Android phone (Redmi 9 / MIUI 13) remotely from the Hermes VPS — WireGuard tunnel + adb + AutoJS6 accessibility scripts. Use when the user asks Houston to view/tap/typ on the phone, take screenshots, unlock the screen, mute/unmute app notifications (ปิด/เปิดการแจ้งเตือนแอป), check/set WireGuard Always-on VPN, find a phone menu/setting (e.g. Always-on display), probe whether the phone has a hardware capability (IR blaster, NFC — see references/hardware-probes.md), or when adb/WireGuard/AutoJS6 needs recovery after a drop, reboot, or port rotation."
+description: "Control the user's Android phone (Redmi 9 / MIUI 13) remotely from the Hermes VPS — WireGuard tunnel + adb + AutoJS6 accessibility scripts. Use when the user asks Houston to view/tap/type on the phone, take screenshots, unlock the screen, mute/unmute app notifications, check/set WireGuard Always-on VPN, find a phone menu/setting (e.g. Always-on display), probe whether the phone has a hardware capability (IR blaster, NFC — see references/hardware-probes.md), or when adb/WireGuard/AutoJS6 needs recovery after a drop, reboot, or port rotation."
 version: 2.4.0
 author: Houston
 license: MIT
@@ -30,8 +30,9 @@ evidence-based — do not re-litigate it with `input` experiments.
 | **Names** | WireGuard peer label = **MicrowareMobile** (user-set 2026-10-24: `# Name:` under `[Peer]` in `/etc/wireguard/wg0.conf`, under `[Interface]` in `/etc/wireguard/phone0.conf`, and in `~/wg-phone.conf` — comment-only, no reload). MIUI `device_name` = "Redmi 9" (shell `settings put global device_name` denied: WRITE_SECURE_SETTINGS → rename must be done in the phone's Settings UI). **Tailscale**: installed on BOTH ends (VPS `tailscale` 1.104.2 = **Logged out / NeedsLogin**, phone app `com.tailscale.ipn` = first-run "Welcome to Tailscale") **and only one VPN can be active at a time — WireGuard owns the slot**, so Tailscale can't connect while our tunnel runs (VPN-permission dialog). Dead-end until both ends log in AND WireGuard is off; name the machine "Microware Mobile" in the Tailscale admin console when that happens |
 | Pairing | persists across reboot AND wireless-debug off/on (observed) — only re-pair when `adb connect` won't reach `device` state |
 
-**Screen-lock user journey (their words):** 1) ลากมือผ่านจอ **≥1 วินาทีโดยไม่ปล่อยมือ** →
-2) ลาก pattern ต่อ (นิ้วเดียวต่อเนื่อง) → 3) เครื่องปลดล็อก.
+**Screen-lock user journey (their own words, translated):** 1) drag a finger across the screen
+**for ≥1 second without lifting it** → 2) keep dragging into the pattern (one continuous finger) →
+3) the phone unlocks.
 **Speed-tuned 2026-10-24 (user's suggestion): 500ms works for BOTH the wake-swipe and the
 pattern draw** — 7/7 unlocks succeeded on attempt A1 at 500/500, so the "≥1s" figure was
 *observed behaviour*, not a hard requirement. Rebuild timings with
@@ -58,7 +59,7 @@ Full end-to-end recipe when the user asks to connect a new phone to Houston:
 
 1. **Tunnel**: `ping -c2 -W2 10.66.66.2` + `sudo wg show` (handshake should be <2 min).
    Down → MIUI killed WireGuard on sleep: user opens WG app + battery
-   **"ไม่มีข้อจำกัด/No restrictions"** + **Always-on VPN** (ตั้งค่า → เชื่อมต่อและแชร์ → VPN).
+   battery **"No restrictions"** + **Always-on VPN** (Settings → Connection & sharing → VPN).
    `tcpdump -ni any udp port51820` showing only `Out` packets = phone not sending (WG off/no net).
 2. **Scan & connect** — ports ROTATE on every wireless-debug re-init/reboot; never reuse old
    numbers (seen: 43775, 41267, 45591, 44581, 34981, 35669). Use `scripts/scan_connect.py`
@@ -67,7 +68,7 @@ Full end-to-end recipe when the user asks to connect a new phone to Houston:
 3. **Wireless debugging won't listen until the user unlocks the phone ONCE after reboot**
    (standard Android). Empty scan + tunnel up → ask for that unlock, not a re-pair.
 4. **Pair** only when connect stays non-`device`: user opens
-   การตั้งค่า → ตัวเลือกสำหรับนักพัฒนา → การดีบักแบบไร้สาย → **"Pair device with pairing code"**
+   Settings → Developer options → Wireless debugging → **"Pair device with pairing code"**
    → sends port + 6-digit code. `adb pair 10.66.66.2:<port> <code>`.
    Codes expire in ~2 min (`Failed: Wrong password or connection was dropped` = stale code).
 
@@ -170,7 +171,7 @@ jp.naver.line.android/.activity.SplashActivity` → `am force-stop jp.naver.line
 lock. LINE packages: `jp.naver.line.android` (main), `com.linecorp.lineoa` (OA).
 Use `am start -S` if the task is stale; focus check via `dumpsys window | grep mCurrentFocus`.
 
-Trigger phrases from the user ("ปลดล็อกให้หน่อย", "ปลดล็อกให้", "unlock the phone") → run it,
+Trigger phrases from the user (any phrasing of "unlock the phone" / "please unlock it") → run it,
 report `SUCCESS`/`FAILED` + the proof screenshot. Already-unlocked → it exits 0 saying so (no
 gestures fired). Requires `~/unlock_script.js` (keep in sync — the script pushes it to the phone
 whenever it differs).
@@ -209,7 +210,7 @@ The calibrated stroke lives ON the phone — nothing to re-derive per run.
 
 ## Reading app content (unread messages / badges / transcripts)
 
-Use when the user asks "อ่านข้อความ…", "มีอะไรใหม่", "check what's unread".
+Use when the user asks to read messages, asks "what's new", or "check what's unread".
 **SEQUENCE RULE — harvest BEFORE you close apps and BEFORE you lock**: after
 `force-stop` the content is gone, and a locked screen can't be read. Correct order:
 unlock → open app → harvest → report → close apps → home → lock.
@@ -301,18 +302,18 @@ How unlock works on stock (vs MIUI/AutoJS6): `input keyevent 224` wakes ✓, `in
 Pattern grid = 3×3 inside lockPatternView bounds, cell centers at (col+0.5)/3, keypad digit 1=top-left…9=bottom-right.
 Lock = `input keyevent 223` ✓ (SLEEP works here, unlike MIUI). Bouncer may need 1 retry if dump races the swipe (script retries 3×).
 
-**FAST PATH (2026-10-25) — AutoJS6 ติดตั้งบน DuckZilla แล้ว** (apk ดึงจาก Redmi `pm path org.autojs.autojs6` → base.apk 139MB → `adb install`; service เปิดผ่าน
-`settings put secure enabled_accessibility_services` + `accessibility_enabled 1` — shell Moto WRITE_secure_settings ✓):
+**FAST PATH (2026-10-25) — AutoJS6 is now installed on DuckZilla** (apk pulled from the Redmi via `pm path org.autojs.autojs6` → base.apk 139MB → `adb install`; the service is enabled via
+`settings put secure enabled_accessibility_services` + `accessibility_enabled 1` — the Moto shell HAS WRITE_secure_settings ✓):
 `~/duckzilla_unlock.py unlock` = fast-first (push `~/duck_unlock.js` → fire RunIntentActivity → poll logcat
-`HOUSTON ... t=` marks → verify deviceLocked) → miss อัตโนมัติ fallback legacy dump+stroke.
+`HOUSTON ... t=` marks → verify deviceLocked) → on a miss it falls back automatically to the legacy dump+stroke.
 **Measured: host 1.7-2.3s (wall ~2.7-3.4s) vs legacy 7.7-9.8s vs baseline `input`-only 16.1s.**
 - Script stages on device: wake(5-67ms) → settle 450ms → swipe(180ms) → findOne(id) → resample 35 pts → `gesture(500, pts)` = **continuous stroke → trail visible like Redmi**.
-- **Moto bouncer node quirk (ครั้งแรกพัง):** `class="android.view.View"` + `NAF=true` + `resource-id="com.android.systemui:id/lockPatternView"` — **NOT** `com.android.internal.widget.LockPatternView` → selector ต้องเป็น `id(...)` ห้าม className.
-- **Wake-swipe race:** `device.isScreenOn()` true ที่ t=4ms แต่ panel ยังไม่รับ gesture → swipe ที่ <300ms ถูกกลืน (เจอสองรอบ) → ต้อง settle ≥450ms + swipe retry 1 ครั้ง.
-- Fresh install ต้อง grant storage: `pm grant ... READ_EXTERNAL_STORAGE` (WRITE ไม่ได้ declare → SecurityException, ไม่เป็นไร) + `appops set org.autojs.autojs6 MANAGE_EXTERNAL_STORAGE allow` — ไม่งั้น Toast "No storage r/w permission" = script ไม่รัน (logcat มีเฉพาะ ActivityTaskManager + Toast, ไม่มี GlobalConsole).
-- `exit()` ใน AutoJS ท้ายสคริปต์ = log `ScriptInterruptedException` benign.
-- **evdev ตายบนเครื่องนี้:** shell อยู่กลุ่ม input แต่ SELinux Enforcing `input_device` → `sendevent /dev/input/event2` = EACCES, ไม่มี root (`which su` ว่าง) → ทางเดียวเร็วคือ AutoJS gesture. `cmd input` = "No shell command implementation". `input` JVM spawn = 0.65s warm / 0.7-5.8s cold ต่อ call (floor ของ legacy).
-- Pattern ใน JS = base64 จาก vault (`~/duck_unlock.js` regenerate ผ่าน python heredoc, ห้าม print digits).
+- **Moto bouncer node quirk (the first attempt failed):** `class="android.view.View"` + `NAF=true` + `resource-id="com.android.systemui:id/lockPatternView"` — **NOT** `com.android.internal.widget.LockPatternView` → the selector MUST be `id(...)`, never className.
+- **Wake-swipe race:** `device.isScreenOn()` is already true at t=4ms but the panel has not accepted gestures yet → swipes fired at <300ms get swallowed (hit this twice) → you need settle ≥450ms plus one swipe retry.
+- A fresh install must grant storage: `pm grant ... READ_EXTERNAL_STORAGE` (WRITE is not declared → SecurityException, harmless) + `appops set org.autojs.autojs6 MANAGE_EXTERNAL_STORAGE allow` — otherwise the "No storage r/w permission" Toast means the script never runs (logcat shows only ActivityTaskManager + Toast, no GlobalConsole).
+- `exit()` at the end of an AutoJS script logs a benign `ScriptInterruptedException`.
+- **evdev is dead on this device:** the shell is in the input group but SELinux is Enforcing `input_device` → `sendevent /dev/input/event2` = EACCES, and there is no root (`which su` is empty) → the only fast path is the AutoJS gesture. `cmd input` = "No shell command implementation". `input` JVM spawn = 0.65s warm / 0.7-5.8s cold per call (the legacy floor).
+- The pattern inside the JS is base64 from the vault (`~/duck_unlock.js` regenerated through a python heredoc — never print the digits).
 
 ## Kiwi Browser on DuckZilla — extension deploy/update lifecycle — LIVE 2026-10-26
 
@@ -340,7 +341,7 @@ effect (Reload re-reads the snapshot, not /sdcard). Updates require a full re-im
 
 ## Per-app notification control (appops) — LIVE 2026-10-25
 
-Use when the user asks to mute/unmute an app's notifications remotely ("ปิดการแจ้งเตือน shopee/tiktok...").
+Use when the user asks to mute/unmute an app's notifications remotely (e.g. "turn off shopee/tiktok notifications").
 **Mechanism = `appops set <pkg> POST_NOTIFICATION ignore|allow`** — shell-allowed on this MIUI,
 persists across reboot (no re-run needed). Belt-and-suspenders `pm revoke/grant
 android.permission.POST_NOTIFICATION` throws SecurityException on Android 12 (permission is still
@@ -362,12 +363,12 @@ installed. `pm list packages` is ground truth; report absent apps to the user in
 `SecurityException: writing to settings requires android.permission.WRITE_SECURE_SETTINGS`
 (shell lacks it on this MIUI; same class as `settings put secure`). Do NOT burn time hunting an adb
 path. The fix is a 30-second manual step to send the user:
-ตั้งค่า → เชื่อมต่อและแชร์ → VPN → ⚙️ ข้าง WireGuard → เปิด "VPN เสมอเปิดอยู่" — and leave
-lockdown (บล็อกทราฟฟิกโดยไม่มี VPN) OFF so a dead tunnel doesn't hard-kill all connectivity.
+Settings → Connection & sharing → VPN → ⚙️ next to WireGuard → enable "Always-on VPN" — and leave
+lockdown ("Block connections without VPN") OFF so a dead tunnel doesn't hard-kill all connectivity.
 This is the durable fix for "WG died during sleep, tunnel down15+ hrs" (see Connection workflow step 1).
 
 **CHECKING always-on — `settings get global always_on_vpn_app` is a DEAD END on Android 10+**
-(this false "null = ยังไม่ได้ตั้ง" report, 2026-10-25; the phone actually had it ON). The
+(this false "null = not set yet" report, 2026-10-25; the phone actually had it ON). The
 Settings.Global key is legacy; always-on state lives in VpnManagerService. Use instead:
 1. `adb shell dumpsys vpn_management` → output `VPNs:\n  0: <pkg>` = always-on provisioned
    for user 0 (absent = off),
@@ -377,7 +378,7 @@ Settings.Global key is legacy; always-on state lives in VpnManagerService. Use i
 Driving that Settings UI remotely: `input tap` is INJECT_EVENTS-blocked; use AutoJS6
 `click(x, y)` with bounds from a `mw.py read -b` dump (verified: opened the WireGuard detail
 page 2026-10-25). Always-on ≠ battery exemption: MIUI can still freeze WG on sleep, so also
-set battery = "ไม่มีข้อจำกัด".
+set battery = "No restrictions".
 
 ## Health watchdog (both phones) — LIVE 2026-10-25
 
@@ -457,81 +458,88 @@ these phones — check `cronjob action=list` first (automated-reporting §duplic
 19. `input keyevent 223` (SLEEP) usually blocked outside the injection window →
     lock_phone.sh falls back to `svc power stayon false` + short timeout, which works
     (screen OFF in ~5s, then timeout restored to MAX; stayon left 0, unlock restores 7).
-20. **MIUI ฆ่า WireGuard ด้วย `AutoLockOffClean` (PowerKeeper) = สาเหตุ tunnel ดับกลางคืน
-    (ฟันธง 2026-10-26 จาก log ตรง):** `ProcessManager: AutoLockOffClean: kill
+20. **MIUI kills WireGuard via `AutoLockOffClean` (PowerKeeper) = the reason tunnels die
+    overnight (confirmed 2026-10-26 straight from the log):** `ProcessManager: AutoLockOffClean: kill
     com.wireguard.android Adj=100` + **`skip restart ... because this device is a lowmemory
-    device!`** → MIUI block คำสั่ง restart → **Always-on VPN ช่วยไม่ได้** (always-on ตั้ง
-    ถูกแล้วด้วย — `dumpsys vpn_management` มี entry, `RUN_ANY_IN_BACKGROUND=allow` ก็ตาม)
-    กติกาการกู้: WG **ฟื้นเองตอนจอตื่น/unlock** (log: `Start proc ... for service
-    GoBackend$VpnService caller=android` ตามมา ~30s หลัง screen_toggled) หรือตอนผู้ใช้เปิด
-    แอปเองจาก launcher. **การตั้งที่ต้องทำในเครื่อง (adb เขียน MIUI DB ไม่ได้):**
-    ① WireGuard → แบตเตอรี่ → **ไม่มีข้อจำกัด** ② ศูนย์ความปลอดภัย → แบตเตอรี่ → ปิด
-    "ล้าง/ปิดแอปอัตโนมัติเมื่อหน้าจอปิด" (AutoLockOffClean) ③ Autostart ของ WG = เปิด.
-    เพิ่มแล้วจาก adb: `dumpsys deviceidle whitelist +com.wireguard.android` ✓ (ช่วย doze
-    อย่างเดียว ไม่ได้กัน AutoLockOffClean). ผู้ใช้ถามบ่อยว่า Developer options → Background
-    process limit ช่วยไหม → **ไม่ช่วย**: คุมแค่ cached LRU, WG ถูก system bind (adj100) อยู่นอก
-    ขอบเขตนั้น และ MIUI ไม่สน AOSP knob — อย่าเสนอทางนี้. MIUI ยังรีเซต accessibility ได้ด้วย
-    → "ไม่มีข้อจำกัด" ควรใส่ให้ทั้ง WireGuard **และ AutoJS6** (ดู #23).
-21. **Wireless-debug "หายไปเอง" มัก = เครื่อง boot ใหม่** — ผู้ใช้อาจยืนยัน "ไม่ได้ reboot"
-    แต่ให้เช็คจริงด้วย `cat /proc/uptime` + `logcat -b system -d | head -3` (system buffer
-    เริ่มที่ boot เช่น `Vold firing up`) + dropbox `SYSTEM_BOOT` — bootreason="reboot" =
-    software reboot (ไม่ใช่แบต/crash). **ทุก boot = wireless-debug ปิดจนกว่าจะปลดล็อกหน้าจอ
-    1 ครั้ง** (กติกา Android) → ถ้าสแกนว่างแต่ ping เข้า = ขอปลดล็อก/เปิดสวิตช์ ไม่ใช่ re-pair.
-    Log ผู้สั่ง reboot ถูก rotate ทิ้งใน ~ชม. (buffer MIUI กินเร็วมาก) — เก็บหลักฐานทันทีที่สงสัย.
-22. **Forensics recipe เมื่อต่อ adb ได้:** `logcat -b system -d` ครอบคลุมตั้งแต่ boot (system
-    tag ไม่ค่อย rotate) → `grep -E 'AutoLockOffClean|skip restart|Start proc.*wireguard'` ได้
-    timeline kill/restart ครบ; `logcat -b events` ลึกแค่ ~ชม. (grep `am_kill`, `screen_toggled`);
-    redirect log ลงไฟล์แล้วค้นด้วย search_files **ถ้าคำสั่ง terminal มีคำว่า shutdown/reboot
-    จะโดน blocklist hardline** (เจอมากับ grep 'reboot reason') — ใช้ไฟล์+search_files แทน.
-23. **`mw.py` taptxt/swipe → `NO_MARKER exit=2` ใน 0.02s = `fire_js.sh` ตายที่ `adb get-state`
-    (error "more than one device" เมื่อ DuckZilla ต่ออยู่)** — แก้: รัน mw.py พร้อม
-    `ANDROID_SERIAL=10.66.66.2:<port>` (บั๊กเดียวกับ unlock_phone.sh #17; เซสชัน 2026-10-26
-    เสียเวลาไล่เพราะ AutoJS service ก็ดันถูก MIUI wipe `accessibility_enabled=0` ไปพร้อมกัน).
-    ปลุก service กลับเมื่อถูก wipe: shell เขียน secure ไม่ได้ (SecurityException) และ
-    `cmd accessibility` ไม่มี subcommand enable → **ต้องให้ผู้ใช้เปิดเอง**: ตั้งค่า → เพิ่มเติม
-    → การเข้าถึง → บริการที่ติดตั้ง → AutoJS6.
-24. **Contact etiquette (Challenger ตั้งกติกา 2026-10-26):** ติดต่อเครื่องใดไม่ได้ **เกิน 3 ครั้ง
-    → หยุด retry + หยุดแจ้งทันที** ห้าม spam ซ้ำใน thread — รอหน้าต่างแก้ปัญหาที่ผู้ใช้กำหนด
-    (เช่น "หลัง 22:00") แล้วค่อยรายงาน/แก้ทีเดียว. ฝังไว้ใน `mw_watchdog.py` แล้ว: คง
-    `QUIET_UNTIL = "<datetime>"` (ก่อนเวลานั้น = เงียบสนิท ไม่ ping ไม่แตะ state → รอบแรก
-    หลังถึงเวลารายงานภาพจริง 1 ครั้ง) + adb-miss warn นับ `adbwarn` ใน state แจ้งสูงสุด
-    **3 ครั้ง/รอบ** (`{n}/3`) แล้วเงียบจนกว่า adb จะกลับมา (มีข้อความ ✅ ตอนหาย + reset นับ).
-    หมดยุคแจ้ง ⚠️ ซ้ำทุก 30 นาที (6 รอบต่อคืนแบบ 25-26 ต.ค.)
-25. **MIUI 13 Global map ของสวิตช์คุ้ม WG (verified บน lancelot 2026-10-26):**
-    - ตั้งค่า → แบตเตอรี่ → **Additional features → "Clear cache when device is locked"** (ค่า
-      "Never" = ไม่ล้าง/ฆ่าตอนล็อก — นี่คือ UI ของตระกูล AutoLockOffClean ที่ฆ่า WG)
-    - App info (ตั้งค่า → แอป → รายละเอียดแอป) → หัวข้อ **"Power"** → radio **"No restrictions"**
-      (= หน้า Battery saver รายแอป; MIUI เรียก "Power" ไม่ใช่ Battery saver) — ตรวจสถานะผ่าน
-      `uiautomator dump` → node RadioButton `content-desc` มีชื่อ option + `checked=true`
-    - หน้า Battery (PowerCenter) ของเครื่องนี้: Current mode / Battery check-up / Battery
-      protection / Additional features / Battery usage — ไม่มี "App battery saver" ที่หัวตาราง
-      (ต้องเข้าทาง App info รายแอปแทน)
-    - `cmd appops get <pkg>` ของ MIUI แสดง `MIUIOP(100xx)` = autostart ฯลฯ (10021≈autostart)
-      — ใช้ verify ได้ว่าผู้ใช้เปิด autostart จริง
-23. **MIUI รีเซต accessibility ทั้งระบบ = AutoJS6 service ตายเงียบๆ** (อาการ: `settings get
-    secure accessibility_enabled` → 0 และ `enabled_accessibility_services` ว่าง; `dumpsys
-    accessibility` → `Bound services:{}` — เจอบน Redmi หลัง MIUI clean ~ครึ่งวัน). อาการใช้งาน:
-    fire script ผ่าน RunIntentActivity **ยังรันได้** (JS engine คนละชั้นกับ service) แต่
-    selector/tap พังทันที → `mw.py taptxt` = `NO_MARKER exit=2` ใน 0.02s. กู้จาก adb **ไม่ได้** บน
-    MIUI: `settings put secure` = SecurityException ทุกทาง และ `cmd accessibility` (มีจริงบน
-    Android 12) **ไม่มี subcommand enable** → ต้องให้ผู้ใช้เปิดเอง: ตั้งค่า → เพิ่มเติม →
-    การเข้าถึง → บริการที่ติดตั้ง → AutoJS6 → เปิด. **stock Moto: ใช้ได้** — shell มี
+    device!`** → MIUI blocks the restart command → **Always-on VPN does NOT help** (always-on was
+    correctly configured — `dumpsys vpn_management` has the entry, `RUN_ANY_IN_BACKGROUND=allow` too)
+    Recovery rule: WG **revives itself when the screen wakes/unlocks** (log: `Start proc ... for service
+    GoBackend$VpnService caller=android` follows ~30s after screen_toggled) or when the user opens
+    the app from the launcher. **Settings that must be done on the device (adb cannot write the MIUI DB):**
+    ① WireGuard → Battery → **No restrictions** ② Security center → Battery → turn OFF
+    "Clear/kill apps automatically when the screen is off" (AutoLockOffClean) ③ WG Autostart = ON.
+    Already added from adb: `dumpsys deviceidle whitelist +com.wireguard.android` ✓ (helps with doze
+    only, it does not stop AutoLockOffClean). Users often ask whether Developer options → Background
+    process limit helps → **it does not**: it only governs the cached LRU, WG is system-bound (adj100)
+    outside that range and MIUI ignores the AOSP knob — do not offer this fix. MIUI can also reset
+    accessibility → give "No restrictions" to **both** WireGuard **and** AutoJS6 (see #23).
+21. **Wireless debugging "vanishing by itself" usually = the device rebooted** — the user may
+    insist "I did not reboot", but verify for real with `cat /proc/uptime` +
+    `logcat -b system -d | head -3` (the system buffer starts at boot, e.g. `Vold firing up`) +
+    dropbox `SYSTEM_BOOT` — bootreason="reboot" means a software reboot (not battery/crash).
+    **Every boot = wireless debugging stays OFF until the screen is unlocked once** (Android rule)
+    → an empty scan while ping works = ask for that unlock / to flip the switch, not a re-pair.
+    The log of who ordered the reboot rotates away within ~1 hour (the MIUI buffer drains fast) —
+    capture the evidence the moment you suspect it.
+22. **Forensics recipe once adb is reachable:** `logcat -b system -d` covers everything since
+    boot (system tags rarely rotate) → `grep -E 'AutoLockOffClean|skip restart|Start proc.*wireguard'`
+    gives a complete kill/restart timeline; `logcat -b events` only goes back ~1 hour (grep
+    `am_kill`, `screen_toggled`); redirect the log to a file and search it with the file-search tool.
+    **If a terminal command contains the words shutdown/reboot it hits a hard blocklist** (seen with
+    grep 'reboot reason') — use a saved file + file search instead.
+23. **`mw.py` taptxt/swipe → `NO_MARKER exit=2` in 0.02s = `fire_js.sh` died at `adb get-state`
+    (error "more than one device" while DuckZilla is connected)** — fix: run mw.py with
+    `ANDROID_SERIAL=10.66.66.2:<port>` (same bug as unlock_phone.sh #17; the 2026-10-26 session
+    wasted time debugging it because the AutoJS service had ALSO been wiped by MIUI
+    (`accessibility_enabled=0`) at the same time).
+    To wake the service back up after a wipe: the shell cannot write secure settings
+    (SecurityException) and `cmd accessibility` has no enable subcommand → **the user must turn it
+    on manually**: Settings → Additional settings → Accessibility → Installed services → AutoJS6.
+24. **Contact etiquette (rule set by Challenger 2026-10-26):** if a device cannot be reached
+    **more than 3 times → stop retrying AND stop notifying immediately** — no repeated spam in the
+    thread; wait for the user's own fix window (e.g. "after 22:00") and report/fix in one go.
+    Already embedded in `mw_watchdog.py`: keep `QUIET_UNTIL = "<datetime>"` (before that time = completely
+    silent, no ping, no state touch → the first round after the deadline reports the real picture
+    once) + the adb-miss warning counts `adbwarn` in state and notifies at most **3 times/round**
+    (`{n}/3`), then stays quiet until adb returns (a ✅ message when it is lost + counter reset).
+    The era of repeating ⚠️ every 30 minutes (6 rounds per night on Oct 25-26) is over.
+25. **MIUI 13 global map of the switches that protect WG (verified on lancelot 2026-10-26):**
+    - Settings → Battery → **Additional features → "Clear cache when device is locked"** (value
+      "Never" = no clear/kill while locked — this is the UI of the AutoLockOffClean family that kills WG)
+    - App info (Settings → Apps → Manage apps) → section **"Power"** → radio **"No restrictions"**
+      (= the per-app Battery saver page; MIUI calls it "Power", not Battery saver) — check the state via
+      `uiautomator dump` → RadioButton node whose `content-desc` carries the option name + `checked=true`
+    - The Battery page (PowerCenter) on this device: Current mode / Battery check-up / Battery
+      protection / Additional features / Battery usage — there is no "App battery saver" at the top
+      of the list (you must go in per app via App info instead)
+    - MIUI's `cmd appops get <pkg>` prints `MIUIOP(100xx)` = autostart etc. (10021≈autostart)
+      — useful to verify the user really enabled autostart
+23. **MIUI resetting accessibility system-wide = the AutoJS6 service dies silently** (symptoms:
+    `settings get secure accessibility_enabled` → 0 and `enabled_accessibility_services` empty;
+    `dumpsys accessibility` → `Bound services:{}` — seen on the Redmi ~half a day after a MIUI clean).
+    Usage symptoms: firing a script through RunIntentActivity **still works** (the JS engine is a
+    different layer from the service) but selector/tap breaks immediately → `mw.py taptxt` =
+    `NO_MARKER exit=2` in 0.02s. You **cannot** recover it from adb on MIUI: `settings put secure` =
+    SecurityException on every path, and `cmd accessibility` (which does exist on Android 12) has
+    **no enable subcommand** → the user must turn it on manually: Settings → Additional settings →
+    Accessibility → Installed services → AutoJS6 → on. **Stock Moto: it works** — the shell HAS
     WRITE_SECURE_SETTINGS → `settings put secure enabled_accessibility_services
     org.autojs.autojs6/org.autojs.autojs.core.accessibility.AccessibilityServiceUsher` +
-    `settings put secure accessibility_enabled 1` (asymmetry MIUI/stock — เหมือนตอนติดตั้ง
-    AutoJS6 ใหม่บน DuckZilla). ป้องกัน MIUI ปิดซ้ำ: ใส่ "ไม่มีข้อจำกัด"+Autostart ให้ AutoJS6.
-23. **MIUI รีเซ็ต accessibility settings ของเครื่องด้วย** (พบ 2026-10-26: `accessibility_enabled=0`
-    + `enabled_accessibility_services` ว่าง ทั้งที่ตั้งไว้เมื่อวาน) → AutoJS6 service หลุด
-    (`Bound services:{}`) → **taptxt/tap/gesture พังหมด** (NO_MARKER exit=2, 0.02s) ทั้งที่
-    process ยังอยู่และ script รันได้. **Shell re-enable ไม่ได้**: `settings put secure` =
-    SecurityException (Redmi ไม่ให้ WRITE_SECURE_SETTINGS, ต่างจาก Moto), `cmd accessibility`
-    ไม่มี subcommand enable (มีแค่ help/set-bind-instant/trace) → **ต้องให้ผู้ใช้เปิดเอง**:
-    ตั้งค่า → เพิ่มเติม → การเข้าถึง → บริการที่ติดตั้ง → AutoJS6 → เปิด. ถ้าโดนปิดซ้ำอีก =
-    AutoJS ถูก MIUI clean ด้วย → ใส่ "ไม่มีข้อจำกัด" + Autostart ให้ AutoJS6 เหมือน WG.
-    ระหว่าง a11y ตาย: อ่านจอได้ตามปกติผ่าน uiautomator (`mw.py read` 0.2-3s) เฉพาะการ
-    "แตะ/ลาก" ที่ตาย. **Background process limit (Developer options) ไม่ช่วยเรื่อง kill** — มัน
-    คุมแค่ cached process, WG เป็น bound VpnService (adj100) อยู่นอกข้อจำกัด และ PowerKeeper
-    ไม่สน AOSP knob นี้.
+    `settings put secure accessibility_enabled 1` (MIUI/stock asymmetry — same as installing
+    AutoJS6 fresh on DuckZilla). To stop MIUI killing it again: give AutoJS6 "No restrictions" + Autostart.
+23. **MIUI also resets the device's accessibility settings** (found 2026-10-26:
+    `accessibility_enabled=0` + empty `enabled_accessibility_services` although it was set the day
+    before) → the AutoJS6 service drops (`Bound services:{}`) → **taptxt/tap/gesture all break**
+    (NO_MARKER exit=2, 0.02s) even though the process is still alive and the script runs.
+    **The shell cannot re-enable it**: `settings put secure` = SecurityException (the Redmi does not
+    grant WRITE_SECURE_SETTINGS, unlike the Moto) and `cmd accessibility` has no enable subcommand
+    (only help/set-bind-instant/trace) → **the user must enable it manually**: Settings → Additional
+    settings → Accessibility → Installed services → AutoJS6 → on. If it gets disabled again = AutoJS
+    is being MIUI-cleaned too → give AutoJS6 "No restrictions" + Autostart like WG.
+    While a11y is dead: screen reads still work through uiautomator (`mw.py read` 0.2-3s) — only
+    tap/drag is dead. **Background process limit (Developer options) does not help against kills** —
+    it only governs cached processes, WG is a bound VpnService (adj100) outside that limit, and
+    PowerKeeper ignores this AOSP knob.
 20. **"Accessibility service enabled but not running" ≠ unbound** (2026-10-25): the
     AutoJS error text is identical for (a) u2-unbind (pitfall #16, auto-recovers) and
     (b) the service being fully OFF. Diagnose FIRST: `settings get secure
@@ -541,8 +549,8 @@ these phones — check `cronjob action=list` first (automated-reporting §duplic
     WRITE_SECURE_SETTINGS SecurityException; `pm grant <pkg>
     android.permission.WRITE_SECURE_SETTINGS` → GRANT_RUNTIME_PERMISSIONS
     SecurityException; `adb root` → refused (production build). Send the user:
-    การตั้งค่า → ตั้งค่าเพิ่มเติม → การเข้าถึง → แอปที่ดาวน์โหลด → AutoJS6 → เปิด →
-    ยืนยัน "อนุญาต". While it is down, host `uiautomator dump` READS still work —
+    Settings → Additional settings → Accessibility → Downloaded apps → AutoJS6 → on →
+    confirm "Allow". While it is down, host `uiautomator dump` READS still work —
     only AutoJS gestures/taps are dead (mw.py read ✓, mw.py tap/swipe ✗).
 21. **MIUI settings activities are not all exported** —
     `com.android.settings/.AODSettingActivity` and `.display.AODStyleActivity` throw
@@ -554,19 +562,20 @@ these phones — check `cronjob action=list` first (automated-reporting §duplic
     1080-wide screen). AOD strings live in `com.android.thememanager`; there is no
     there is no `com.miui.aod` package and there is no `doze_always_on` secure key on this ROM.
     22. **Kiwi extension = snapshot from zip** — file edits under `/sdcard/Download/<ext>/` are silent no-ops; Reload re-reads the snapshot. Update = Remove + re-import zip (full cycle in §Kiwi Browser). Watch for double-import (two Enabled instances after rapid cycles).
-    23. **`input text` is ASCII-only and Thai slugs typed from memory lose characters** (e.g. ์) → the xn--3 site renders its HOMEPAGE layout at unknown slugs (soft-404, no error page!) → wasted debugging cycles blaming the engine. Fix: copy the displayed unicode URL from the `url_bar` a11y row → percent-encode with `python3 -c "from urllib.parse import quote; quote(s, safe='/-')"` → type the encoded form; sanity-check any URL with a curl `<title>` before testing on the phone.
-    24. During long sessions the phone goes AOD + locked (screen OFF, `deviceLocked=1`, focus=AOD) with a "Wireless debugging connected" notification shade pulled — after ANY idle gap re-check `dumpsys display | grep mScreenState` + `dumpsys trust | grep deviceLocked` BEFORE the next UI step ("เช็คดีๆ" — user correction). Recovery: `input keyevent 224` (stock wakes) → `~/duckzilla_unlock.py unlock` → `keyevent 4` dismisses the shade.
-    25. **Delivery boundary (user rule, 2026-10-26):** personal-device tasks must NEVER touch microware services (mail.microware.tech / its nginx / platform) for hosting or delivery — user shut down an nginx-static-hosting attempt explicitly ("ไม่ต้องไปยุ่ง"). Deliver files via `adb push` (tunnel up) or Discord MEDIA: attachments only.
+    23. **`input text` is ASCII-only, and non-Latin characters typed from memory lose marks** (e.g. a combining tone mark) → the xn--3 site renders its HOMEPAGE layout at unknown slugs (soft-404, no error page!) → wasted debugging cycles blaming the engine. Fix: copy the displayed unicode URL from the `url_bar` a11y row → percent-encode with `python3 -c "from urllib.parse import quote; quote(s, safe='/-')"` → type the encoded form; sanity-check any URL with a curl `<title>` before testing on the phone.
+    24. During long sessions the phone goes AOD + locked (screen OFF, `deviceLocked=1`, focus=AOD) with a "Wireless debugging connected" notification shade pulled — after ANY idle gap re-check `dumpsys display | grep mScreenState` + `dumpsys trust | grep deviceLocked` BEFORE the next UI step (the user's rule: "double-check it"). Recovery: `input keyevent 224` (stock wakes) → `~/duckzilla_unlock.py unlock` → `keyevent 4` dismisses the shade.
+    25. **Delivery boundary (user rule, 2026-10-26):** personal-device tasks must NEVER touch microware services (mail.microware.tech / its nginx / platform) for hosting or delivery — the user shut down an nginx-static-hosting attempt explicitly ("hands off"). Deliver files via `adb push` (tunnel up) or Discord MEDIA: attachments only.
 
     ## Watchdog & outage forensics (both phones)
-Cron no_agent job ทุก 30 นาทีรัน `scripts/mw_watchdog.py` (คัดลอกประจำที่
-`~/.hermes/scripts/mw_watchdog.py`; หา job id ด้วย `cronjob list` → ชื่อ "Mobile tunnel watchdog"):
-- ping tunnel ทั้ง 2 เครื่อง → สุขภาพดี = **เงียบสนิท** (stdout ว่าง, รัน ~1-2 วิ); แจ้งก็ต่อเมื่อ
-  สถานะเปลี่ยน: DOWN (พร้อมคำแนะนำ) / กลับมา UP / tunnel UP แต่ adb พอร์ตหมุน → สแกน+ต่อให้เอง
-- state: `~/.hermes/state/mw_tun.json` (กัน alert ซ้ำข้ามรอบ)
-- **Forensics: `~/.hermes/cron/output/<job_id>/*.md` เก็บ output ทุกรอบ** (รวม "silent")
-  → อ่านย้อนหลังเป็น timeline ดับ/กลับ ชั่วโมงต่อชั่วโมงได้ฟรี — ใช้จำกัด outage window
-  (เช่น 22:00-04:00) แล้วไปไล่ logcat ระบบในช่วงนั้นตาม #20-22
+A cron no_agent job runs `scripts/mw_watchdog.py` every 30 minutes (the standing copy lives at
+`~/.hermes/scripts/mw_watchdog.py`; find the job id with `cronjob list` → name "Mobile tunnel watchdog"):
+- pings the tunnel on BOTH devices → healthy = **totally silent** (empty stdout, runs ~1-2s); it only
+  reports on a state change: DOWN (with fix instructions) / back UP / tunnel UP but the adb port
+  rotated → it re-scans and reconnects by itself
+- state: `~/.hermes/state/mw_tun.json` (prevents duplicate alerts across rounds)
+- **Forensics: `~/.hermes/cron/output/<job_id>/*.md` stores the output of every round** (including
+  "silent" ones) → you can read an hour-by-hour up/down timeline for free — use it to bound the
+  outage window (e.g. 22:00-04:00) and then chase system logcat in that range per #20-22
 
 ## Support files
 
@@ -574,7 +583,7 @@ Cron no_agent job ทุก 30 นาทีรัน `scripts/mw_watchdog.py` (�
 - `references/app-content-harvest.md` — read unread messages/content from any app: badge ground truth, scroll-frame stitch, LINE package/activity ids, recents + home cleanup
 - `references/autojs6-remote.md` — trigger command, logcat comms, proven API, hard limits
 - `references/hardware-probes.md` — does this phone have hardware X? (IR/NFC evidence ladder, worked IR-blaster example)
-- `references/miui-settings-map.md` — "ต้องไปเมนูไหน" quick map (AOD, Sleep, lock screen, VPN, a11y) + settings-dump tips
+- `references/miui-settings-map.md` — "which menu do I need" quick map (AOD, Sleep, lock screen, VPN, a11y) + settings-dump tips
 - `templates/unlock_script.js` — starter unlock script (journey + calibrated grid JSON)
 - `scripts/scan_connect.py` — port scan + adb connect + device pick (run whenever no device entry)
 - `scripts/app_notifications.py` — toggle/unmute per-app notifications via appops POST_NOTIFICATION (tunnel-check + keyword package discovery built in)

@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
-"""app_notifications.py — สลับการแจ้งเตือนรายแอปบนมือถือที่ต่อผ่าน tunnel + adb wireless
+"""app_notifications.py — toggle per-app notifications on a phone reached over tunnel + wireless adb
 
 Usage:
   app_notifications.py off  [--ip 10.66.66.2] [--apps shopee,tiktok,...] [pkg...]
   app_notifications.py on   [...]
   app_notifications.py status [...]
 
-ตัวอย่าง (MicrowareMobile / Redmi 9):
-  app_notifications.py off                      # shopee/tiktok/musically/lazada ตามค่า default
+Examples (MicrowareMobile / Redmi 9):
+  app_notifications.py off                      # shopee/tiktok/musically/lazada by default
   app_notifications.py on
   app_notifications.py status
-  app_notifications.py off com.lazada.android   # เฉพาะตัวที่ระบุ (override keyword)
+  app_notifications.py off com.lazada.android   # explicit package only (overrides the keywords)
 
-กลไก: appops set <pkg> POST_NOTIFICATION ignore/allow (persist ข้าม reboot) +
-พยายาม pm revoke/grant android.permission.POST_NOTIFICATION เสริม —
-บน Android 12 pm revoke จะ SecurityException (permission ยังเป็น normal) ให้ข้ามได้
+Mechanism: appops set <pkg> POST_NOTIFICATION ignore/allow (persists across reboot) +
+best-effort pm revoke/grant android.permission.POST_NOTIFICATION —
+on Android 12 pm revoke raises SecurityException (the permission is still "normal" there) and is skipped.
 
-ข้อกำหนด: WireGuard ฝั่งมือถือ ON + wireless debugging เปิด (มักค้างหลัง unlock)
+Requirements: WireGuard ON on the phone + wireless debugging enabled (it often stays on after an unlock)
 """
 import argparse
 import os
@@ -48,13 +48,13 @@ def connect_device(ip):
             break
         time.sleep(3)
     else:
-        print(f"TUNNEL DOWN: {ip} ไม่ตอบ — เปิดแอป WireGuard ฝั่งมือถือก่อน แล้วรันใหม่")
+        print(f"TUNNEL DOWN: {ip} not responding — open the WireGuard app on the phone first, then rerun")
         sys.exit(2)
     r = run(["python3", SCAN_CONNECT, ip], timeout=120)
     m = re.search(r"DEVICE:\s*(\S+)", r.stdout)
     if not m:
-        print("adb connect ไม่สำเร็จ:\n" + (r.stdout + r.stderr).strip())
-        print("→ port ว่างเปล่า = wireless debugging ต้อง unlock หน้าจอก่อน (post-reboot)")
+        print("adb connect failed:\n" + (r.stdout + r.stderr).strip())
+        print("→ no open port = wireless debugging needs one screen unlock first (post-reboot)")
         sys.exit(2)
     return m.group(1)
 
@@ -89,7 +89,7 @@ def set_package(dev, pkg, mode):
         notes.append(f"appops={val} ✓")
     else:
         ok = False
-        notes.append("appops ล้มเหลว: " + (r.stderr or r.stdout).strip()[:80])
+        notes.append("appops failed: " + (r.stderr or r.stdout).strip()[:80])
 
     perm = "android.permission.POST_NOTIFICATION"
     r = adbsh(dev, ["pm", "revoke", pkg, perm] if mode == "off"
@@ -99,9 +99,9 @@ def set_package(dev, pkg, mode):
     else:
         err = (r.stderr + r.stdout).lower()
         if "changeable" in err or "secur" in err or "unknown" in err:
-            notes.append("permission=ข้าม")
+            notes.append("permission=skipped")
         else:
-            notes.append("permission=ข้าม: " + (r.stderr or r.stdout).strip()[:60])
+            notes.append("permission=skipped: " + (r.stderr or r.stdout).strip()[:60])
 
     state = appop_state(dev, pkg)
     ok = ok and ((mode == "off" and state == "off") or (mode == "on" and state != "off"))
@@ -111,9 +111,9 @@ def set_package(dev, pkg, mode):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("mode", choices=["off", "on", "status"])
-    ap.add_argument("pkgs", nargs="*", help="package เฉพาะที่ระบุ (ถ้าเว้น = ค้นจาก --apps)")
-    ap.add_argument("--ip", default="10.66.66.2", help="tunnel IP ของเครื่อง (default MicrowareMobile)")
-    ap.add_argument("--apps", default=DEFAULT_APPS, help="comma-separated keyword ค้น package")
+    ap.add_argument("pkgs", nargs="*", help="explicit packages (omit = discover via --apps)")
+    ap.add_argument("--ip", default="10.66.66.2", help="tunnel IP of the device (default MicrowareMobile)")
+    ap.add_argument("--apps", default=DEFAULT_APPS, help="comma-separated keywords used to discover packages")
     a = ap.parse_args()
 
     dev = connect_device(a.ip)
@@ -121,7 +121,7 @@ def main():
 
     pks = a.pkgs or find_packages(dev, [k.strip() for k in a.apps.split(",") if k.strip()])
     if not pks:
-        print(f"ไม่พบแอปที่ตรงกับ: {a.pkgs or a.apps}")
+        print(f"no apps matched: {a.pkgs or a.apps}")
         sys.exit(1)
 
     if a.mode == "status":
@@ -129,13 +129,13 @@ def main():
             print(f"{p:40s} {appop_state(dev, p)}")
         return
 
-    label = "ปิด" if a.mode == "off" else "เปิด"
+    label = "mute" if a.mode == "off" else "unmute"
     fails = 0
     for p in pks:
         ok, detail = set_package(dev, p, a.mode)
         print(f"{label} {p:40s} {detail}" + ("" if ok else "  ✗"))
         fails += 0 if ok else 1
-    print("ผลลัพธ์: " + ("ทั้งหมดสำเร็จ ✓" if not fails else f"มี {fails} ตัวต้องตรวจสอบ"))
+    print("Result: " + ("all succeeded ✓" if not fails else f"{fails} item(s) need review"))
     sys.exit(0 if not fails else 3)
 
 

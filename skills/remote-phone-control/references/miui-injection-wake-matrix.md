@@ -21,7 +21,7 @@ dumpsys package com.android.shell | grep INJECT_EVENTS
 input swipe ... → SecurityException                   ← runtime still blocks
 ```
 ⇒ MIUI layers its own runtime gate tied to dev toggle
-**"การดีบัก USB (การตั้งค่าความปลอดภัย)" / USB debugging (Security settings)**.
+**USB debugging (Security settings)** (MIUI shows the literal Thai translation of this label).
 
 Observed lifecycle:
 - Toggle ON (user, ~03:00) → keyevents worked for hours (223 slept screen,

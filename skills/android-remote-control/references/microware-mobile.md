@@ -4,7 +4,7 @@ Current working device behind the Discord channel for phone commands.
 
 ## Identity
 - Model: Xiaomi Redmi 9, `M2004J19C`, codename **lancelot** (`lancelot_global`), 1080×2340.
-- Displayed name: was `Redmi 9` in `settings get global device_name` — user asked (2026-10-24) to rename to **MicrowareMobile**. NOT yet done: MIUI blocks direct writes (see pitfalls in SKILL.md); requires UI rename after the user unlocks the phone (Settings → เกี่ยวกับโทรศัพท์ → ชื่ออปกรณ์), then verify with `settings get global device_name`.
+- Displayed name: was `Redmi 9` in `settings get global device_name` — user asked (2026-10-24) to rename to **MicrowareMobile**. NOT yet done: MIUI blocks direct writes (see pitfalls in SKILL.md); requires UI rename after the user unlocks the phone (Settings → About phone → Device name), then verify with `settings get global device_name`.
 - Lock: secure pattern lock. ADB cannot dismiss it; user must unlock manually before any UI automation.
 
 ## Transport (differs from the Tailscale path in the main skill)

@@ -1,6 +1,6 @@
 ---
 name: android-remote-control
-description: "Control an Android phone remotely from a Houston server — ADB over Tailscale (wireless-debugging pair/connect, screencap, input injection, scrcpy) with a no-root Termux reverse-tunnel fallback. Use when the user asks to view, control, or automate their own phone from a distance (\"ควบคุมมือถือผ่านทางไกล\", remote-control my phone, ดูหน้าจอมือถือ)."
+description: "Control an Android phone remotely from a Houston server — ADB over Tailscale (wireless-debugging pair/connect, screencap, input injection, scrcpy) with a no-root Termux reverse-tunnel fallback. Use when the user asks to view, control, or automate their own phone from a distance (\"control my phone remotely\", remote-control my phone, screenshot the phone screen)."
 version: 0.1.0
 author: Houston
 license: MIT
@@ -20,7 +20,7 @@ public internet — traffic is end-to-end encrypted inside the tailnet and visib
 only to devices in the user's Tailscale account.
 
 ## When to Use
-- "ควบคุมมือถือตัวเองผ่านทางไกล" / remote-control my phone / screenshot หน้าจอมือถือ / สั่งงานมือถือให้ที
+- "control my own phone remotely" / remote-control my phone / screenshot the phone screen / drive the phone for me
 - Automating or inspecting UI on the user's own device (combine with REA tools
   `mcp_rea_capture_adb_screen` etc. when the goal is app analysis).
 
@@ -104,7 +104,7 @@ Phone initiates everything (phone → VPS:22 outbound, allowed by carriers):
 
 ## MIUI (Redmi 9 / lancelot) Specifics — see `references/microware-mobile.md`
 MIUI adds restrictions that stock-AOSP advice doesn't cover:
-1. **`settings put global device_name <name>` → `SecurityException: WRITE_SECURE_SETTINGS`** even from adb shell (MIUI protects device-name writes). `setprop net.hostname` / `setprop persist.sys.*` also fail (SELinux). Renaming the device MUST go through UI: Settings → เกี่ยวกับโทรศัพท์ → ชื่ออปกรณ์, driven by taps after unlock.
+1. **`settings put global device_name <name>` → `SecurityException: WRITE_SECURE_SETTINGS`** even from adb shell (MIUI protects device-name writes). `setprop net.hostname` / `setprop persist.sys.*` also fail (SELinux). Renaming the device MUST go through UI: Settings → About phone → Device name, driven by taps after unlock.
 2. **Locked screen ⇒ input injection is blocked.** `input keyevent KEYCODE_WAKEUP`/`26` throws `SecurityException: Injecting to another application requires INJECT_EVENTS` and `wm dismiss-keyguard` does nothing (secure pattern lock). `cmd power wake` = "Unknown command" on this MIUI. Wake path that works: `svc power stayon true` (sometimes wakes + keeps on while USB-powered). ~~ADB cannot bypass a pattern lock, so plan on asking the user to unlock for any UI task.~~ **SUPERSEDED 2026-10-24/25**: the proven remote unlock is NOT `input`/adb — it's the AutoJS6 accessibility path in `devops/remote-phone-control` (calibrated pattern stroke, `scripts/unlock_phone.sh`, 7/7 verified). Load that skill before telling the user they must unlock by hand.
 3. **Screen-off ⇒ `screencap` returns a valid-looking 1080×2340 PNG that is 100% black** — not an error, exit 0. Detect it fast: `sha256sum` two captures; identical hashes = nothing rendered. `uiautomator dump` on a black screen yields only `systemui:id/scrim_*` nodes. Always confirm `dumpsys power | grep mWakefulness=` + `dumpsys display | grep mState=` before trusting a screenshot.
 4. While keyguard is up, `dumpsys window | grep mCurrentFocus` shows `NotificationShade` regardless of which activity you `am start`ed — the launch may have succeeded underneath (check `mFocusedApp`).

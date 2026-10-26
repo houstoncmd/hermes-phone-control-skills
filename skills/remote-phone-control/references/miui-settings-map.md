@@ -1,17 +1,17 @@
 # MIUI 13 (Redmi 9, Global V13.0.2.0.SJCMIXM) — settings menu map
 
-For "ต้องไปเมนูไหน" questions. Paths are from live UI dumps (uiautomator). Launch a Settings
+For "which menu do I need" questions. Paths are from live UI dumps (uiautomator). Launch a Settings
 screen with `am start -n com.android.settings/.Settings$<X>Activity` — but see pitfall #21,
 many MIUI sub-activities are NOT exported; navigate the UI when in doubt.
 
 | User ask | Menu path | Activity / notes |
 |---|---|---|
-| Always-on display (AOD) เปิด/ปิด | การตั้งค่า → หน้าจอล็อก → หัวข้อ **"WHEN TO SHOW"** → Always-on display | Switch ~x853-1002 on 1080-wide; row title opens style sub-page. `AODSettingActivity` + `display.AODStyleActivity` NOT exported. State = switch `checked`; no `doze_always_on` key. AOD strings live in `com.android.thememanager`. |
-| Screen timeout (ทำไมจอไม่ดับ) | การตั้งค่า → หน้าจอ → **Sleep** | ⚠️ On this phone `screen_off_timeout=2147483647` + `stayon=7` is **Houston's own remote-control config**, not AOD — tell the user before they "fix" it. `Settings$DisplaySettingsActivity` exported ✓ |
-| Lock screen extras (signature, wallet, device controls) | การตั้งค่า → หน้าจอล็อก → หัวข้อ "WHAT TO SHOW" | `Settings$LockScreenSettingsActivity` exported ✓ |
-| VPN / Always-on VPN | การตั้งค่า → เชื่อมต่อและแชร์ → VPN → ⚙️ ข้าง WireGuard | See "Always-on VPN" section in SKILL.md — adb write blocked, UI only |
-| Notification per-app mute | การตั้งค่า → การแจ้งเตือน → [app] | Or remotely via `appops set <pkg> POST_NOTIFICATION ignore` |
-| Accessibility / AutoJS6 re-enable | การตั้งค่า → ตั้งค่าเพิ่มเติม → การเข้าถึง → แอปที่ดาวน์โหลด → AutoJS6 | Manual-only (pitfall #20) |
+| Always-on display (AOD) on/off | Settings → Lock screen → section **"WHEN TO SHOW"** → Always-on display | Switch ~x853-1002 on 1080-wide; row title opens style sub-page. `AODSettingActivity` + `display.AODStyleActivity` NOT exported. State = switch `checked`; no `doze_always_on` key. AOD strings live in `com.android.thememanager`. |
+| Screen timeout (why won't the screen go dark) | Settings → Display → **Sleep** | ⚠️ On this phone `screen_off_timeout=2147483647` + `stayon=7` is **Houston's own remote-control config**, not AOD — tell the user before they "fix" it. `Settings$DisplaySettingsActivity` exported ✓ |
+| Lock screen extras (signature, wallet, device controls) | Settings → Lock screen → section "WHAT TO SHOW" | `Settings$LockScreenSettingsActivity` exported ✓ |
+| VPN / Always-on VPN | Settings → Connection & sharing → VPN → ⚙️ next to WireGuard | See "Always-on VPN" section in SKILL.md — adb write blocked, UI only |
+| Notification per-app mute | Settings → Notifications → [app] | Or remotely via `appops set <pkg> POST_NOTIFICATION ignore` |
+| Accessibility / AutoJS6 re-enable | Settings → Additional settings → Accessibility → Downloaded apps → AutoJS6 | Manual-only (pitfall #20) |
 
 **Settings search shortcut is dead**: `--es ":settings:search_results_activity_key"` extras do
 nothing from adb. To enumerate real activity names use

@@ -83,6 +83,6 @@ third-party app rows.
 ## 6. Reporting style the user expects
 
 Thai, table-or-numbered list newest→oldest, each item = date + time + what it says
-(summarised, quote only short key lines), explicit count line ("16 ข้อความ — ตรงกับ
+(summarised, quote only short key lines), explicit count line ("16 messages — matches the
 badge"), and a one-line note for anything irreversible you had to do (e.g. marking read).
 Attach proof as `MEDIA:/path` when a screenshot exists.

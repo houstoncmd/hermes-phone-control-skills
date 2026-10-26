@@ -1,6 +1,6 @@
 # Hardware capability probes via adb (no root, no spec sheet)
 
-When the user asks "เครื่องนี้มีฟังก์ชัน X ไหม" (IR blaster, NFC, FM radio, etc.), prove it from
+When the user asks "does this device have feature X" (IR blaster, NFC, FM radio, etc.), prove it from
 the device itself — spec sites lie about regional variants. All commands run as `adb shell`
 (uid 2000), no root needed for reads.
 

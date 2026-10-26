@@ -1,30 +1,31 @@
-# Security Policy / นโยบายความปลอดภัย
+# Security Policy
 
 ## What this repository must NEVER contain
 
-| ห้ามเด็ดขาด | ตัวอย่าง |
+| Forbidden | Examples |
 |---|---|
-| Unlock pattern / PIN / password จริง | เลข keypad 7 หลัก, `SEQ = "..."` ของเครื่องจริง |
+| Real unlock pattern / PIN / password | 7 keypad digits, a device's real `SEQ = "..."` |
 | Private keys | WireGuard `PrivateKey` / `PresharedKey`, SSH keys, `-----BEGIN ...` |
-| Token / session / API key | `ghp_...`, cookie, bearer token |
-| IP สาธารณะของเซิร์ฟเวอร์จริง / อีเมลส่วนตัว | แทนด้วย `YOUR_VPS_PUBLIC_IP`, `you@example.com` |
-| เนื้อหาส่วนบุคคลจากหน้าจอมือถือ | ข้อความแชต, ภาพหน้าจอจริง, รายชื่อผู้ติดต่อ |
+| Token / session / API key | `ghp_...`, cookies, bearer tokens |
+| Real server public IP / personal email | use `YOUR_VPS_PUBLIC_IP`, `you@example.com` instead |
+| Personal content captured from a phone screen | chat messages, real screenshots, contact lists |
 
-สคริปต์ใน repo อ่านความลับจาก **vault ภายนอก** (เช่น `~/.hermes/data/vault.json`) หรือไฟล์ `0600`
-ที่ผู้ใช้สร้างเองในเครื่องของตัวเอง — ไม่มีค่าจริงฝังในโค้ด
+The scripts read secrets from an **external vault** (e.g. `~/.hermes/data/vault.json`) or from a
+`0600` file the user creates on their own machine — no real value is ever embedded in the code.
 
-## Pre-push checklist (ทำทุกครั้ง)
+## Pre-push checklist (run it every time)
 
 ```bash
-# รันจาก root ของ repo — ต้องได้ผลลัพธ์ว่างทั้งหมด
-grep -rInE '7-4-1-5-3-6-9|[0-9]{7}|-----BEGIN|ghp_[A-Za-z0-9]|@gmail\.com|password\s*=\s*[^< ]' . \
+# Run from the repo root — every command must come back empty
+grep -rInE '[0-9]-[0-9]-[0-9]-[0-9]-[0-9]-[0-9]-[0-9]|[0-9]{7}|-----BEGIN|ghp_[A-Za-z0-9]|@gmail\.com|password\s*=\s*[^< ]' . \
   --exclude=LICENSE --exclude-dir=.git
+# (first term = a 7-digit keypad pattern written in dash order — substitute your own shape if you like)
 ```
 
-ถ้าเจอค่าจริง → แทนด้วย placeholder (`YOUR_PATTERN`, `YOUR_VPS_PUBLIC_IP`, `you@example.com`)
-แล้ว **แก้ใน git history ด้วย** (ยังไม่ commit = ลบทิ้งแล้ว commit ใหม่)
+If a real value shows up → replace it with a placeholder (`YOUR_PATTERN`, `YOUR_VPS_PUBLIC_IP`,
+`you@example.com`) and, if it was already committed, **rewrite it out of git history too**.
 
 ## Reporting
 
-พบความลับหลุดใน repo นี้ → แจ้งเป็น GitHub Issue ทันที พร้อมลิงก์ไฟล์/commit
-(อย่าแปะค่าจริงของความลับลงใน issue) แล้วให้เจ้าของ repo revoke/rotate ค่านั้นทันที
+Found a leaked secret in this repo → open a GitHub Issue immediately with the file/commit link
+(never paste the secret itself), and the repo owner must revoke/rotate that value at once.
